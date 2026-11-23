@@ -1,0 +1,49 @@
+name: Bug
+description: A product defect confirmed by a person (usually from a BugDraft).
+labels: ["bug", "status:new"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill this from `reports/bug-drafts/<fingerprint>.md`. Search open issues for the fingerprint first.
+  - type: input
+    id: tc
+    attributes: { label: Test case ID(s), placeholder: TC-INP-003 }
+    validations: { required: true }
+  - type: input
+    id: fingerprint
+    attributes: { label: Failure fingerprint, placeholder: 0eaf50b2632e }
+  - type: dropdown
+    id: severity
+    attributes: { label: Severity, options: [critical, major, minor, trivial] }
+    validations: { required: true }
+  - type: dropdown
+    id: priority
+    attributes: { label: Priority, options: [P1, P2, P3, needs-triage] }
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes: { label: Reproduction steps }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: Expected result }
+    validations: { required: true }
+  - type: textarea
+    id: actual
+    attributes: { label: Actual result }
+    validations: { required: true }
+  - type: textarea
+    id: environment
+    attributes: { label: Environment, description: "Test env, base URL, browser/viewport, OS, app build revision, CI run" }
+    validations: { required: true }
+  - type: textarea
+    id: evidence
+    attributes: { label: Evidence, description: Screenshot, trace, video, console and network logs }
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Triage
+      options:
+        - label: I reproduced this and it is a product defect, not a test or environment problem.
+          required: true

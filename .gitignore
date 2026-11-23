@@ -1,0 +1,14 @@
+node_modules/
+test-results/
+reports/
+blob-report/
+playwright/.cache/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+evidence/
+# Never published through Git (checked by npm run privacy:check)
+evidence-export/
+playwright-report/

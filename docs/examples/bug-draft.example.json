@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "runId": "20261122T165935Z-d75661",
+  "status": "draft",
+  "fingerprint": "222348ab685c",
+  "title": "TC-RPT-001: Cart total is rounded to cents — assertion mismatch",
+  "testCaseIds": [
+    "TC-RPT-001"
+  ],
+  "linkedBugs": [],
+  "classification": {
+    "category": "product-defect-candidate",
+    "reason": "An assertion compared values and the application returned a different one.",
+    "consistent": true
+  },
+  "severity": {
+    "suggested": "major",
+    "source": "tag @smoke (core path)"
+  },
+  "priority": "needs-triage",
+  "test": {
+    "title": "assertion mismatch",
+    "file": "framework-tests/fixtures/reporter-project/samples.spec.ts",
+    "line": 11,
+    "project": "",
+    "tags": [
+      "@smoke"
+    ]
+  },
+  "reproductionSteps": [
+    "[setup] Set content",
+    "Click getByRole('button', { name: 'Add' })",
+    "Read the cart total  ← failed here"
+  ],
+  "expectedResult": {
+    "fromTestCase": [
+      "The total reads $19.99."
+    ],
+    "fromAssertion": "\"$19.99\""
+  },
+  "actualResult": {
+    "fromAssertion": "\"$19.990000000000002\"",
+    "error": "Error: expect(locator).toHaveText(expected) failed\n\nLocator:  getByTestId('total')\nExpected: \"$19.99\"\nReceived: \"$19.990000000000002\"\nTimeout:  300ms\n\nCall log:\n  - Expect \"toHaveText\" getByTestId('total') with timeout 300ms\n  - waiting for getByTestId('total')\n    7 × locator resolved to <p data-testid=\"total\">$19.990000000000002</p>\n      - unexpected value \"$19.990000000000002\""
+  },
+  "environment": {
+    "testEnv": "unknown",
+    "browser": "chromium",
+    "os": "darwin 27.2.0 arm64",
+    "playwright": "1.65.1",
+    "buildRevision": "unknown",
+    "frameworkCommit": "uncommitted"
+  },
+  "evidence": [
+    {
+      "name": "screenshot",
+      "path": "evidence/runs/20261122T165935Z-d75661/artifacts/samples-cart-assertion-mismatch-retry1/test-failed-1.png",
+      "contentType": "image/png"
+    },
+    {
+      "name": "error-context",
+      "path": "evidence/runs/20261122T165935Z-d75661/artifacts/samples-cart-assertion-mismatch-retry1/error-context.md",
+      "contentType": "text/markdown"
+    },
+    {
+      "name": "trace",
+      "path": "evidence/runs/20261122T165935Z-d75661/artifacts/samples-cart-assertion-mismatch-retry1/trace.zip",
+      "contentType": "application/zip"
+    }
+  ],
+  "consoleErrors": [],
+  "networkFailures": [],
+  "attempts": 2,
+  "createdAt": "2026-11-22T16:59:40.595Z"
+}

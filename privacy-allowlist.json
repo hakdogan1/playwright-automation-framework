@@ -1,0 +1,26 @@
+[
+  {
+    "path": "framework-tests/reporting.spec.ts",
+    "rule": "url-credentials",
+    "count": 2,
+    "reason": "Synthetic redaction fixture: access_token=abc / apikey=k1 on the reserved host x.test, used to prove redactUrl masks them."
+  },
+  {
+    "path": "framework-tests/reporting.spec.ts",
+    "rule": "jwt",
+    "count": 1,
+    "reason": "Synthetic redaction fixture: textbook JWT (header {\"alg\":\"HS256\"}, payload {\"sub\":\"1234567890\"}), used to prove redactText masks JWTs."
+  },
+  {
+    "path": "framework-tests/reporting.spec.ts",
+    "rule": "bearer-basic",
+    "count": 1,
+    "reason": "Synthetic redaction fixture: a bearer header with a 16-letter alphabet sample value, used to prove redactText masks bearer tokens."
+  },
+  {
+    "path": "framework-tests/fixtures/reporter-project/samples.spec.ts",
+    "rule": "url-credentials",
+    "count": 1,
+    "reason": "Synthetic guard fixture: token=SECRET123 on the reserved host api.blocked.invalid; the reporter self-test proves it is redacted in evidence."
+  }
+]

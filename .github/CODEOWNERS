@@ -1,0 +1,16 @@
+# Code owners of the safety controls. A change to any of these paths needs the owner's review
+# (enforced by branch protection / ruleset "require review from Code Owners" on main).
+# Keep in sync with AI Guard's protected classes: framework-tests/codeowners.spec.ts checks both.
+
+# CI workflows
+/.github/workflows/      @hakdogan1
+
+# AI Guard sources (oracle protection and baseline approval)
+/scripts/ai-guard.ts     @hakdogan1
+/core/ai/                @hakdogan1
+
+# Privacy gate exceptions
+/privacy-allowlist.json  @hakdogan1
+
+# This file
+/.github/CODEOWNERS      @hakdogan1

@@ -1,0 +1,167 @@
+name: CI
+
+# Prepared but not yet verified on GitHub Actions (billing currently blocks runs).
+# Everything here also runs locally: npm run check && npm run test:qa-practice
+#
+# Trust boundary (docs/ai-workflow.md, "Baseline approval"):
+# - For pull_request runs GitHub executes the workflow file of the pull request itself, so the checks
+#   below can be edited by the change they check. They are therefore NOT the only safeguard: branch
+#   protection / rulesets on main (required checks, code-owner review of .github/**, core/ai/**,
+#   scripts/ai-guard.ts and privacy-allowlist.json) are configured in GitHub, outside the repository.
+# - The baseline reference lives in the environment secret AI_GUARD_BASELINE_REF of the environment
+#   ai-guard-baseline (required reviewer, deployment branch: main only). A pull request branch cannot
+#   deploy to that environment, so a modified workflow cannot obtain the reference.
+# - pull_request_target is deliberately not used: it would run with a write token and secrets.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Describes the commit; never sees the baseline reference. The manifest holds rules, files, details
+  # and content hashes only (no file content, no reference values).
+  ai-guard-scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      is_root: ${{ steps.root.outputs.is_root }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Is this the root commit?
+        id: root
+        run: |
+          if [ "$(git rev-list --parents -n 1 HEAD | wc -w)" -eq 1 ]; then echo "is_root=true" >> "$GITHUB_OUTPUT"; else echo "is_root=false" >> "$GITHUB_OUTPUT"; fi
+      - name: AI Guard finding manifest (counts only in the log)
+        run: npm run ai:guard -- --manifest ai-guard-manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-guard-manifest
+          path: ai-guard-manifest.json
+          if-no-files-found: error
+          retention-days: 14
+
+  # Root commit of main only. GitHub pauses this job until a required reviewer of the protected
+  # environment approves it; only then is the reference secret released to the job.
+  ai-guard-baseline:
+    needs: ai-guard-scan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.ai-guard-scan.outputs.is_root == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: ai-guard-baseline
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # The job only waited for a human if the environment really is protected. A missing environment
+      # (GitHub would create it unprotected), no required reviewer or an admin bypass fails here.
+      - name: Verify the environment is protected (fail closed)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/environments/ai-guard-baseline" > "$RUNNER_TEMP/environment.json"
+          gh api "repos/${GITHUB_REPOSITORY}/environments/ai-guard-baseline/deployment-branch-policies" > "$RUNNER_TEMP/branch-policies.json"
+          npm run ai:guard -- --verify-environment "$RUNNER_TEMP/environment.json" --branch-policies "$RUNNER_TEMP/branch-policies.json" --reviewer hakdogan1
+      - name: Verify the approved baseline (exact SHA, manifest hash, finding IDs)
+        env:
+          AI_GUARD_BASELINE: '1'
+          AI_GUARD_BASELINE_REF: ${{ secrets.AI_GUARD_BASELINE_REF }}
+        run: npm run ai:guard
+
+  quality:
+    needs: [ai-guard-scan, ai-guard-baseline]
+    # Always runs: a job skipped by its condition would count as passed for a required check.
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: AI Guard gate (fail closed)
+        env:
+          SCAN: ${{ needs.ai-guard-scan.result }}
+          IS_ROOT: ${{ needs.ai-guard-scan.outputs.is_root }}
+          BASELINE: ${{ needs.ai-guard-baseline.result }}
+        run: |
+          if [ "$SCAN" != "success" ]; then echo "AI Guard scan did not succeed ($SCAN)."; exit 1; fi
+          if [ "$IS_ROOT" = "true" ] && [ "$BASELINE" != "success" ]; then echo "Root commit: the approved AI Guard baseline is required ($BASELINE)."; exit 1; fi
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run tc:validate
+      - name: privacy gate (fail-closed publication check)
+        run: npm run privacy:check
+      # Normal commits and pull requests: unchanged. The root commit is covered by ai-guard-baseline.
+      - name: ai-guard (test oracle protection)
+        if: needs.ai-guard-scan.outputs.is_root != 'true'
+        env:
+          AI_GUARD_BASE: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
+          AI_GUARD_APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'assertion-change-approved') && '1' || '0' }}
+        run: npm run ai:guard
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:framework
+
+  qa-practice:
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TEST_ENV: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # One run ID for this job: the test run writes evidence/runs/$PQF_RUN_ID and the export reads
+      # exactly that run (format checked by the export: YYYYMMDDTHHMMSSZ-<6 hex>).
+      - name: Fix the evidence run ID
+        run: echo "PQF_RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)-$(openssl rand -hex 3)" >> "$GITHUB_ENV"
+      - run: npx playwright test --project=qa-practice-chromium --project=qa-practice-mobile
+      # Raw evidence (traces, screenshots, videos, error context, HTML report) never leaves the runner.
+      # Only a complete export of this run that passed the rescan is published; there is no fallback.
+      - name: Sanitized evidence export (metadata only)
+        id: export
+        if: always() && env.PQF_RUN_ID != ''
+        run: npm run evidence:export -- "$PQF_RUN_ID"
+      - name: Triage summary
+        if: always() && steps.export.outcome == 'success'
+        run: cat "evidence-export/$PQF_RUN_ID/bug-drafts/triage.md" >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.export.outcome == 'success'
+        with:
+          name: qa-practice-evidence-sanitized
+          path: evidence-export/${{ env.PQF_RUN_ID }}/
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 14
