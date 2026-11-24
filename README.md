@@ -7,7 +7,22 @@ bug drafts** that a human reviews before anything is filed.
 
 Reference application: [QA Practice](https://qapractice.hakdogan.com) (read-only, production).
 
-> Status: Phase 2C.2C (local). 23 of 46 QA Practice UI modules automated. The 15 Bug Playground defects are covered separately and are not part of that count. In total: 161 TC-IDs and 15 Bug-IDs, verified on Chromium, mobile Chromium (smoke), Firefox and WebKit. CI workflow is prepared but not yet verified on GitHub Actions. Coverage details: [module inventory](docs/qa-practice-module-inventory.md#coverage-summary-updated-2026-11-23-faz-2c2c).
+> Status: Phase 2C.6 (local). 46 of 46 QA Practice UI modules automated. The 15 Bug Playground defects are covered separately and are not part of that count. In total: 293 TC-IDs and 15 Bug-IDs, verified on Chromium, mobile Chromium (smoke), Firefox and WebKit. CI workflow is prepared but not yet verified on GitHub Actions. Coverage details: [module inventory](docs/qa-practice-module-inventory.md#coverage-summary-updated-2026-11-24-faz-2c6).
+
+## v1.0 final regression (local, 2026-11-24)
+
+Run against production (QA Practice build `3d14d23`, read-only guard). Evidence stays local in `evidence/runs/<run ID>/` (git-ignored).
+
+| Run | Scope | Result |
+|---|---|---|
+| `20261123T230822Z-e009b8` | Framework self-tests | 280 / 280 passed |
+| `20261123T230900Z-155c28` | All UI modules on Chromium, Firefox, WebKit (391 each) + mobile smoke (53), including the Bug Playground | **1,225 passed / 1 failed** · 0 flaky · 0 retries · 0 skipped. 45 known Bug Playground defects failed as expected (`test.fail`, 15 per desktop browser) |
+| `20261124T070041Z-768718` | Targeted rerun after the fix: Date Range on all four projects, each test 3 times | **132 / 132 passed** |
+
+- **The failure:** WebKit, TC-DTR-005 ("a third pick starts a new range"). The test clicked days 10, 20 and 25 in quick succession. The click on 25 reached the app before React had re-rendered the pick of 20, and the app's `pick()` reads the selection from the render closure, so the range became 10 → 25.
+- **The fix (test side, no assertion changed):** `DateRangePage.pick()` waits until each pick has changed the chip before the next click, as a user who sees each result. The race in the app's code is recorded in [OBS-06](docs/observations/OBS-06-date-range-time-handling.md).
+- Production Guard: 1,226 reports in production/enforce mode, no request other than GET, no unknown host. Analytics was stubbed; the Bug Playground's backend reads were blocked as expected (OBS-01).
+- **Not verified yet:** GitHub Actions CI has never run. Deferred: payment test-card flows (local-only), the locked-account and used-email triggers (need reserved domains), API and DB tests (v1.1). Open product findings: OBS-01…OBS-10 (drafts, not filed).
 
 ## Quick start
 ```bash

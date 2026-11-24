@@ -2,9 +2,17 @@ import type { Locator, Page } from '@playwright/test';
 import { DataTable } from '../components/data-table.component';
 import { moduleHeading, openModule } from '../support/module';
 
+/** A route that renders the dynamic table widget: /ui-elements/dynamic-table/ and /ui-elements/tables/ (same `DynamicTableWidget`). */
+export interface DynamicTableRoute {
+  path: string;
+  title: string;
+}
+
 /** /ui-elements/dynamic-table/ — searchable, filterable, sortable, editable users table (4 rows per page). */
 export class DynamicTablePage {
   static readonly path = '/ui-elements/dynamic-table/';
+  static readonly dynamicTableRoute: DynamicTableRoute = { path: DynamicTablePage.path, title: 'Dynamic Table' };
+  static readonly tablesRoute: DynamicTableRoute = { path: '/ui-elements/tables/', title: 'Tables' };
   readonly heading: Locator;
   readonly search: Locator;
   readonly statusFilter: Locator;
@@ -17,8 +25,11 @@ export class DynamicTablePage {
   readonly next: Locator;
   readonly lastAction: Locator;
 
-  constructor(private readonly page: Page) {
-    this.heading = moduleHeading(page, 'Dynamic Table');
+  constructor(
+    private readonly page: Page,
+    readonly entry: DynamicTableRoute = DynamicTablePage.dynamicTableRoute,
+  ) {
+    this.heading = moduleHeading(page, entry.title);
     const demo = page.getByTestId('dynamic-table-demo');
     // The search box has no label in the app; its placeholder is the visible hint.
     this.search = demo.getByPlaceholder('Search users…');
@@ -52,6 +63,6 @@ export class DynamicTablePage {
   }
 
   async goto(): Promise<void> {
-    await openModule(this.page, { path: DynamicTablePage.path, heading: this.heading, ready: this.sortByName });
+    await openModule(this.page, { path: this.entry.path, heading: this.heading, ready: this.sortByName });
   }
 }
